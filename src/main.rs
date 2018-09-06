@@ -1,10 +1,9 @@
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
 extern crate toml;
 extern crate clap;
 extern crate home;
 extern crate todo_txt;
-extern crate crossterm;
+#[macro_use] extern crate prettytable;
 
 use std::error::Error;
 use std::io::prelude::*;
@@ -14,7 +13,7 @@ use std::io::BufReader;
 use std::io::BufRead;
 use clap::{App, Arg, SubCommand};
 use todo_txt::Task;
-use crossterm::{Screen, Crossterm, Color};
+use prettytable::{Table, format, cell::Cell, Attr, color};
 
 #[derive(Deserialize)]
 struct Config {
@@ -71,11 +70,6 @@ fn parse_todo_txt(path: &PathBuf) -> Vec<Task> {
     file.lines().map(|line| todo_txt::parser::task(&line.unwrap()).unwrap()).collect()
 }
 
-fn print_task(screen: &Screen, crossterm: &Crossterm, task: &Task) {
-    let style = crossterm.style(format!("{}\n", task.subject)).with(Color::Black).on(Color::White);
-    style.paint(&screen);
-}
-
 fn main() {
     let app: App = App::new("todo.txt")
         .version("0.1.0")
@@ -111,9 +105,6 @@ fn main() {
         );
     let matches = app.get_matches();
 
-    let screen = Screen::default();
-    let crossterm = Crossterm::new(&screen);
-
     // parse the config
     let config: PathBuf = match matches.value_of("config") {
         Some(c) => PathBuf::from(c),
@@ -148,8 +139,48 @@ fn main() {
     else {
         // list all our tasks by default
         let tasks = parse_todo_txt(&path);
+
+        let mut table = Table::new();
+        table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+        table.set_titles(row!["✓", "description", "date"]);
+
         for task in tasks {
-            print_task(&screen, &crossterm, &task);
+            let finished: Cell = if task.finished {
+                Cell::new("✓")
+                    .with_style(Attr::Bold)
+                    .with_style(Attr::ForegroundColor(color::GREEN))
+            } else {
+                Cell::new("")
+            };
+
+            let subject: Cell = if task.finished {
+                Cell::new(&task.subject)
+                    .with_style(Attr::Dim)
+            }
+            else {
+                Cell::new(&task.subject)
+            };
+
+            let date: Cell = if task.finished {
+                match task.finish_date {
+                    Some(d) => Cell::new(&d.to_string())
+                                    .with_style(Attr::ForegroundColor(color::GREEN))
+                                    .with_style(Attr::Dim),
+                    None => Cell::new("? finished")
+                                    .with_style(Attr::ForegroundColor(color::GREEN))
+                                    .with_style(Attr::Dim),
+                }
+            }
+            else {
+                match task.create_date {
+                    Some(d) => Cell::new(&d.to_string()),
+                    None => Cell::new("? created"),
+                }
+            };
+
+            table.add_row(Row::new(vec![finished, subject, date]));
         }
+
+        table.printstd();
     }
 }
