@@ -142,43 +142,14 @@ fn main() {
 
         let mut table = Table::new();
         table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-        table.set_titles(row!["✓", "description", "date"]);
+        table.set_titles(row!["✓", "★", "description"]);
 
         for task in tasks {
-            let finished: Cell = if task.finished {
-                Cell::new("✓")
-                    .with_style(Attr::Bold)
-                    .with_style(Attr::ForegroundColor(color::GREEN))
-            } else {
-                Cell::new("")
-            };
+            let finished = if task.finished { "✓" } else { "" };
+            let priority = format!("{}", task.priority);
+            let subject = &task.subject;
 
-            let subject: Cell = if task.finished {
-                Cell::new(&task.subject)
-                    .with_style(Attr::Dim)
-            }
-            else {
-                Cell::new(&task.subject)
-            };
-
-            let date: Cell = if task.finished {
-                match task.finish_date {
-                    Some(d) => Cell::new(&d.to_string())
-                                    .with_style(Attr::ForegroundColor(color::GREEN))
-                                    .with_style(Attr::Dim),
-                    None => Cell::new("? finished")
-                                    .with_style(Attr::ForegroundColor(color::GREEN))
-                                    .with_style(Attr::Dim),
-                }
-            }
-            else {
-                match task.create_date {
-                    Some(d) => Cell::new(&d.to_string()),
-                    None => Cell::new("? created"),
-                }
-            };
-
-            table.add_row(Row::new(vec![finished, subject, date]));
+            table.add_row(row![finished, priority, subject]);
         }
 
         table.printstd();
